@@ -1,0 +1,22 @@
+appId: com.videodownloader.app
+productName: VideoDownloader
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - prisma/schema.prisma
+extraResources:
+  - from: resources/bin/
+    to: bin
+    filter:
+      - '**/*'
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: VideoDownloader-${version}-portable.exe
+npmRebuild: false
+publish: null
