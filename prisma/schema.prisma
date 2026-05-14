@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model History {
+  id        Int      @id @default(autoincrement())
+  url       String
+  title     String   @default("")
+  duration  String   @default("")
+  format    String   @default("")
+  quality   String   @default("")
+  filePath  String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id                  Int     @id @default(autoincrement())
+  defaultDownloadPath String  @default("")
+  useCookies          Boolean @default(false)
+}
