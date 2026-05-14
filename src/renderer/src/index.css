@@ -26,8 +26,11 @@
     --radius: 0.5rem;
   }
 
+  * {
+    @apply border-border;
+  }
+
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    @apply bg-background text-foreground;
   }
 }
