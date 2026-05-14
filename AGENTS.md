@@ -48,6 +48,65 @@ Before responding to the user's first message in any conversation, you **MUST** 
 - Read `workflow/UNIVERSAL_WORKFLOW.md` to understand the 7-stage Feature Development or 4-phase Debug process.
 - Load `PROJECT_CONFIG.yaml` to adapt the workflow to this project's stack.
 
+## Development Rules
+
+### Commit Convention
+
+All commits **MUST** be feature-based with a type prefix in parentheses:
+
+```
+(type): Description of what changed and why
+```
+
+Allowed types:
+
+| Prefix | When to use |
+|--------|-------------|
+| `(feat)` | New feature or significant functionality addition |
+| `(fix)` | Bug fix or correction |
+| `(refactor)` | Code restructuring without behavior change |
+| `(docs)` | Documentation-only changes (README, ADR, comments) |
+| `(test)` | Adding or updating tests |
+| `(chore)` | Build, tooling, dependency updates, config changes |
+| `(style)` | Code style changes (formatting, linting) without logic change |
+
+Examples:
+```
+(feat): Add IPC bridge for downloadVideo with yt-dlp spawn
+(fix): Correct Prisma client path in production build
+(docs): Add ADR-002 explaining cookie Netscape format choice
+```
+
+One feature / one logical change = one commit. Do not batch unrelated changes into a single commit.
+
+### Architecture Decision Records (ADR)
+
+Whenever an important technical decision is made during development — especially those that affect data flow, security boundaries, binary handling, IPC contracts, or database schema — it **MUST** be documented as an ADR.
+
+- Location: `docs/adr/YYYY-MM-DD-<short-title>.md`
+- Template:
+  ```markdown
+  # ADR-<NNN>: Title
+
+  **Date**: YYYY-MM-DD
+  **Status**: Proposed | Accepted | Deprecated | Superseded by ADR-XXX
+
+  ## Context
+  What is the issue that we're seeing that is motivating this decision?
+
+  ## Decision
+  What is the change that we're proposing or have agreed to?
+
+  ## Consequences
+  What becomes easier or more difficult to do because of this change?
+  ```
+
+Examples of decisions requiring an ADR:
+- Choosing `extraResources` over `asarUnpack` for binary bundling.
+- Deciding to run Prisma Client in Main Process only.
+- Cookie handling strategy (Netscape format, temp file lifecycle).
+- IPC channel design and security boundaries.
+
 ## Project Configuration
 
 - `PROJECT_CONFIG.yaml` — Universal workflow configuration for this project.
