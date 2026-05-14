@@ -22,9 +22,20 @@ function httpsGetJson(url: string): Promise<any> {
 function downloadFile(url: string, dest: string, onProgress?: (msg: string) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest)
+    file.on('error', (err) => {
+      file.close()
+      fs.unlink(dest, () => {})
+      reject(err)
+    })
     https.get(url, { headers: { 'User-Agent': 'VideoDownloader/2.0' } }, (res) => {
       if (res.statusCode === 302 && res.headers.location) {
         downloadFile(res.headers.location, dest, onProgress).then(resolve).catch(reject)
+        return
+      }
+      if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+        file.close()
+        fs.unlink(dest, () => {})
+        reject(new Error(`HTTP ${res.statusCode}`))
         return
       }
       const total = parseInt(res.headers['content-length'] || '0', 10)
@@ -52,6 +63,10 @@ export async function updateYtDlp(
   _senderWindow: BrowserWindow | null,
   onLog: (line: string) => void
 ): Promise<{ success: boolean; error?: string }> {
+  const binaryPath = getBinaryPath('yt-dlp')
+  const backupPath = `${binaryPath}.backup`
+  const tempPath = `${binaryPath}.tmp`
+
   try {
     onLog('[updater] Checking GitHub for latest yt-dlp release...')
     const release = await httpsGetJson('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest')
@@ -63,9 +78,6 @@ export async function updateYtDlp(
       return { success: false, error: 'yt-dlp.exe asset not found in release' }
     }
 
-    const binaryPath = getBinaryPath('yt-dlp')
-    const backupPath = `${binaryPath}.backup`
-
     // Backup existing
     if (fs.existsSync(binaryPath)) {
       fs.copyFileSync(binaryPath, backupPath)
@@ -73,7 +85,6 @@ export async function updateYtDlp(
     }
 
     // Download new binary
-    const tempPath = `${binaryPath}.tmp`
     await downloadFile(asset.browser_download_url, tempPath, (msg) => onLog(`[updater] ${msg}`))
 
     // Replace
@@ -90,6 +101,24 @@ export async function updateYtDlp(
   } catch (err) {
     const msg = (err as Error).message
     onLog(`[updater] Error: ${msg}`)
+
+    if (fs.existsSync(backupPath)) {
+      try {
+        fs.renameSync(backupPath, binaryPath)
+        onLog('[updater] Restored backup binary')
+      } catch (e) {
+        onLog(`[updater] Failed to restore backup: ${(e as Error).message}`)
+      }
+    }
+
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath)
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return { success: false, error: msg }
   }
 }

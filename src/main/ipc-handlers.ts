@@ -5,7 +5,7 @@ import { openGoogleAuthWindow } from './auth'
 import { updateYtDlp } from './updater'
 import type { DownloadOptions, SettingsData } from '@shared/types'
 
-export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
+export function registerIpcHandlers(): void {
   ipcMain.handle('get-settings', async () => {
     const prisma = getPrismaClient()
     let settings = await prisma.settings.findFirst()
@@ -40,7 +40,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   })
 
   ipcMain.handle('open-file', async (_, filePath: string) => {
-    if (filePath) await shell.openPath(filePath)
+    if (!filePath) return
+    const error = await shell.openPath(filePath)
+    if (error) throw new Error(`Failed to open file: ${error}`)
   })
 
   ipcMain.handle('open-folder', async (_, filePath: string) => {
@@ -54,13 +56,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
 
   // Placeholder handlers for Phase 2+
   ipcMain.handle('download-video', async (_, options: DownloadOptions) => {
-    return startDownload(options, mainWindow)
+    const window = BrowserWindow.getAllWindows()[0] ?? null
+    return startDownload(options, window)
   })
 
   ipcMain.handle('update-ytdlp', async () => {
-    if (!mainWindow) return { success: false, error: 'Window not available' }
-    const result = await updateYtDlp(mainWindow, (line) => {
-      mainWindow?.webContents.send('update-log', line)
+    const window = BrowserWindow.getAllWindows()[0] ?? null
+    if (!window) return { success: false, error: 'Window not available' }
+    const result = await updateYtDlp(window, (line) => {
+      window.webContents.send('update-log', line)
     })
     return result
   })

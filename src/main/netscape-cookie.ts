@@ -21,7 +21,7 @@ export function convertToNetscape(cookies: ElectronCookie[]): string {
   ]
 
   for (const cookie of cookies) {
-    const domain = cookie.domain.startsWith('.') ? cookie.domain : '.' + cookie.domain
+    const domain = cookie.domain
     const flag = domain.startsWith('.') ? 'TRUE' : 'FALSE'
     const cookiePath = cookie.path || '/'
     const secure = cookie.secure ? 'TRUE' : 'FALSE'

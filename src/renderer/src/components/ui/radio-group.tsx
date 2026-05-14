@@ -6,17 +6,21 @@ type RadioGroupProps = {
   onValueChange: (value: string) => void
   children: React.ReactNode
   className?: string
+  name?: string
 }
 
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
-  ({ className, children, ...props }, ref) => {
+  ({ className, children, name, ...props }, ref) => {
+    const baseId = React.useId()
     return (
       <div ref={ref} className={cn('grid gap-2', className)} role="radiogroup" {...props}>
         {React.Children.map(children, (child) => {
           if (!React.isValidElement(child)) return child
           return React.cloneElement(child as React.ReactElement<RadioGroupItemProps>, {
             groupValue: props.value,
-            onValueChange: props.onValueChange
+            onValueChange: props.onValueChange,
+            groupName: name,
+            groupId: baseId
           })
         })}
       </div>
@@ -30,19 +34,22 @@ type RadioGroupItemProps = {
   id?: string
   groupValue?: string
   onValueChange?: (value: string) => void
+  groupName?: string
+  groupId?: string
   children?: React.ReactNode
   className?: string
 }
 
 const RadioGroupItem = React.forwardRef<HTMLInputElement, RadioGroupItemProps>(
-  ({ className, value, id, groupValue, onValueChange, children, ...props }, ref) => {
-    const inputId = id || value
+  ({ className, value, id, groupValue, onValueChange, groupName, groupId, children, ...props }, ref) => {
+    const inputId = id || `${groupId || React.useId()}-${value}`
     return (
       <div className={cn('flex items-center space-x-2', className)}>
         <input
           ref={ref}
           type="radio"
           id={inputId}
+          name={groupName}
           value={value}
           checked={groupValue === value}
           onChange={() => onValueChange?.(value)}

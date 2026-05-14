@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { BrowserWindow, session } from 'electron'
 import { getPrismaClient } from './database'
@@ -71,12 +72,34 @@ export async function startDownload(
     }
   }
 
+  // Validate URL
+  if (!/^https?:\/\//.test(options.url) || options.url.startsWith('-')) {
+    return { success: false, error: 'Invalid URL' }
+  }
+
+  // Validate quality
+  const allowedQualities = ['best', '1080', '720', '480', 'audio']
+  if (!allowedQualities.includes(options.quality)) {
+    return { success: false, error: 'Invalid quality option' }
+  }
+
+  // Validate output directory
+  try {
+    if (!fs.existsSync(options.outputDir)) {
+      throw new Error('Directory does not exist')
+    }
+    fs.accessSync(options.outputDir, fs.constants.W_OK)
+  } catch {
+    return { success: false, error: 'Invalid output directory' }
+  }
+
   return new Promise((resolve) => {
     const binaryPath = getBinaryPath('yt-dlp')
     const args = getYtDlpArgs(options, cookiePath)
 
     notifyLog(senderWindow, `[yt-dlp] Starting download from ${options.url}`)
-    notifyLog(senderWindow, `[yt-dlp] Command: ${binaryPath} ${args.join(' ')}`)
+    const logArgs = cookiePath ? args.map((a) => (a === cookiePath ? '[REDACTED]' : a)) : args
+    notifyLog(senderWindow, `[yt-dlp] Command: ${binaryPath} ${logArgs.join(' ')}`)
 
     const proc = spawn(binaryPath, args, { shell: false })
 
@@ -115,17 +138,25 @@ export async function startDownload(
         const filePath = path.join(options.outputDir, `${title}.${ext}`)
 
         // Persist to history
-        const prisma = getPrismaClient()
-        await prisma.history.create({
-          data: {
-            url: options.url,
-            title,
-            duration: '',
-            format: options.format,
-            quality: options.quality,
-            filePath
-          }
-        })
+        try {
+          const prisma = getPrismaClient()
+          await prisma.history.create({
+            data: {
+              url: options.url,
+              title,
+              duration: '',
+              format: options.format,
+              quality: options.quality,
+              filePath
+            }
+          })
+        } catch (dbErr) {
+          const dbErrorMsg = (dbErr as Error).message
+          console.error('[db] Failed to write history:', dbErrorMsg)
+          notifyLog(senderWindow, `[error] Failed to save download history: ${dbErrorMsg}`)
+          resolve({ success: false, error: dbErrorMsg })
+          return
+        }
 
         notifyComplete(senderWindow, { filePath, title })
         resolve({ success: true, filePath, title })

@@ -10,7 +10,8 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      sandbox: true,
+      preload: path.join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -31,7 +32,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   getPrismaClient()
   createWindow()
-  registerIpcHandlers(mainWindow)
+  registerIpcHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

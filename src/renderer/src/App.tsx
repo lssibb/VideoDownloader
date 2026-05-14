@@ -22,9 +22,17 @@ function App() {
   const [updateLogs, setUpdateLogs] = useState<string[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
 
+  const addLog = (message: string) => {
+    setLogs((prev) => [...prev, message])
+  }
+
   const loadHistory = async () => {
-    const items = await window.api.getHistory()
-    setHistory(items)
+    try {
+      const items = await window.api.getHistory()
+      setHistory(items)
+    } catch (err) {
+      addLog(`[error] Failed to load history: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   useEffect(() => {
@@ -32,6 +40,8 @@ function App() {
       setSettings(s)
       setOutputDir(s.defaultDownloadPath)
       setUseCookies(s.useCookies)
+    }).catch((err) => {
+      addLog(`[error] Failed to get settings: ${err instanceof Error ? err.message : String(err)}`)
     })
     loadHistory()
   }, [])
@@ -59,10 +69,14 @@ function App() {
   }, [logs])
 
   const handleSelectFolder = async () => {
-    const folder = await window.api.selectFolder()
-    if (folder) {
-      setOutputDir(folder)
-      await window.api.setSettings({ defaultDownloadPath: folder })
+    try {
+      const folder = await window.api.selectFolder()
+      if (folder) {
+        setOutputDir(folder)
+        await window.api.setSettings({ defaultDownloadPath: folder })
+      }
+    } catch (err) {
+      addLog(`[error] Failed to select folder: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -77,9 +91,14 @@ function App() {
       outputDir,
       useCookies
     }
-    const result = await window.api.downloadVideo(options)
-    if (!result.success) {
-      setLogs((prev) => [...prev, `[error] ${result.error || 'Unknown error'}`])
+    try {
+      const result = await window.api.downloadVideo(options)
+      if (!result.success) {
+        setLogs((prev) => [...prev, `[error] ${result.error || 'Unknown error'}`])
+        setDownloading(false)
+      }
+    } catch (err) {
+      setLogs((prev) => [...prev, `[error] Download failed: ${err instanceof Error ? err.message : String(err)}`])
       setDownloading(false)
     }
   }
@@ -87,16 +106,56 @@ function App() {
   const handleUpdateYtDlp = async () => {
     setUpdating(true)
     setUpdateLogs([])
-    const result = await window.api.updateYtDlp()
-    if (!result.success) {
-      setUpdateLogs((prev) => [...prev, `[error] ${result.error || 'Update failed'}`])
+    try {
+      const result = await window.api.updateYtDlp()
+      if (!result.success) {
+        setUpdateLogs((prev) => [...prev, `[error] ${result.error || 'Update failed'}`])
+      }
+    } catch (err) {
+      setUpdateLogs((prev) => [...prev, `[error] Update failed: ${err instanceof Error ? err.message : String(err)}`])
     }
     setUpdating(false)
   }
 
   const handleClearHistory = async () => {
-    await window.api.clearHistory()
-    setHistory([])
+    try {
+      await window.api.clearHistory()
+      setHistory([])
+    } catch (err) {
+      addLog(`[error] Failed to clear history: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleOpenAuthWindow = async () => {
+    try {
+      await window.api.openAuthWindow()
+    } catch (err) {
+      addLog(`[error] Failed to open auth window: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleOpenFile = async (filePath: string) => {
+    try {
+      await window.api.openFile(filePath)
+    } catch (err) {
+      addLog(`[error] Failed to open file: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleOpenFolder = async (filePath: string) => {
+    try {
+      await window.api.openFolder(filePath)
+    } catch (err) {
+      addLog(`[error] Failed to open folder: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleSetSettings = async (partial: Partial<SettingsData>) => {
+    try {
+      await window.api.setSettings(partial)
+    } catch (err) {
+      addLog(`[error] Failed to save settings: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   return (
@@ -117,7 +176,7 @@ function App() {
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
           <Label>Format</Label>
-          <RadioGroup value={format} onValueChange={(v) => setFormat(v as typeof format)}>
+          <RadioGroup name="format" value={format} onValueChange={(v) => setFormat(v as typeof format)}>
             <RadioGroupItem value="best">Best</RadioGroupItem>
             <RadioGroupItem value="mp4">MP4</RadioGroupItem>
             <RadioGroupItem value="audio">Audio Only</RadioGroupItem>
@@ -126,7 +185,7 @@ function App() {
 
         <div className="flex flex-col gap-2">
           <Label>Quality</Label>
-          <RadioGroup value={quality} onValueChange={(v) => setQuality(v as typeof quality)}>
+          <RadioGroup name="quality" value={quality} onValueChange={(v) => setQuality(v as typeof quality)}>
             <RadioGroupItem value="best">Best</RadioGroupItem>
             <RadioGroupItem value="1080">1080p</RadioGroupItem>
             <RadioGroupItem value="720">720p</RadioGroupItem>
@@ -143,10 +202,10 @@ function App() {
             onChange={(e) => {
               const checked = (e.target as HTMLInputElement).checked
               setUseCookies(checked)
-              window.api.setSettings({ useCookies: checked })
+              handleSetSettings({ useCookies: checked })
             }}
           />
-          <Button variant="outline" size="sm" onClick={() => window.api.openAuthWindow()}>
+          <Button variant="outline" size="sm" onClick={handleOpenAuthWindow}>
             Login to Google
           </Button>
         </div>
@@ -220,10 +279,10 @@ function App() {
                   <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => window.api.openFile(item.filePath)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenFile(item.filePath)}>
                         Open
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => window.api.openFolder(item.filePath)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenFolder(item.filePath)}>
                         Folder
                       </Button>
                     </div>
