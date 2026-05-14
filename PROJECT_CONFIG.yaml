@@ -1,0 +1,132 @@
+---
+# Universal Workflow Configuration
+name: "VideoDownloader"
+extends: "universal-workflow-v1.0"
+---
+
+# =============================================================================
+# TECHNOLOGY STACK
+# =============================================================================
+
+stack:
+  language: python          # python | typescript | go | rust | java | csharp | ...
+  language_version: "3.11"  # specific version
+  framework: ~              # django | fastapi | flask | react | gin | ...
+  framework_version: ~
+
+# =============================================================================
+# COMMANDS (These are used in the workflow stages)
+# =============================================================================
+
+commands:
+  # Testing
+  test: "pytest"
+  test_unit: "pytest tests/unit -v"
+  test_integration: "pytest tests/integration -v"
+  test_all: "pytest"
+  test_watch: "pytest -f"
+
+  # Building
+  build: "echo 'No build step configured'"
+  build_dev: "echo 'No build step for dev'"
+
+  # Linting & Quality
+  lint: "echo 'No linter configured'"
+  lint_fix: "echo 'No linter configured'"
+  format: "echo 'No formatter configured'"
+  format_check: "echo 'No formatter configured'"
+  type_check: "echo 'No type checker configured'"
+
+  # Security
+  security_scan: "echo 'No security scanner configured'"
+
+  # Regression
+  regression_test: "echo 'No regression tests configured'"
+
+  # Version Control
+  vcs_diff: "git diff HEAD~1"
+  get_base_sha: "git rev-parse HEAD~1"
+  get_head_sha: "git rev-parse HEAD"
+
+# =============================================================================
+# PATHS (Where workflow artifacts are stored)
+# =============================================================================
+
+paths:
+  # Workflow outputs
+  design_docs: "docs/designs/"
+  plans: "docs/plans/"
+
+  # Code locations
+  source: "src/"
+  tests:
+    root: "tests/"
+    unit: "tests/unit/"
+    integration: "tests/integration/"
+    e2e: "tests/e2e/"
+
+  # Documentation
+  docs: "docs/"
+
+  # Scripts
+  scripts: "scripts/"
+
+# =============================================================================
+# CONSTRAINTS (Quality standards)
+# =============================================================================
+
+constraints:
+  - "ZERO warnings (enforced)"
+  - "All tests must pass before merge"
+
+# =============================================================================
+# STAGE CUSTOMIZATIONS (Optional per-stage overrides)
+# =============================================================================
+
+stage_customizations:
+  # Stage 5: Testing - Which commands to run
+  stage_5:
+    test_sequence:
+      - command: "{test_unit}"
+        description: "Unit tests"
+      - command: "{test_integration}"
+        description: "Integration tests"
+
+  # Stage 6: Verification - What proves completion
+  stage_6:
+    verification_commands:
+      - command: "{test_all}"
+        expected: "0 failures, exit code 0"
+
+# =============================================================================
+# NAMING CONVENTIONS
+# =============================================================================
+
+conventions:
+  branches: "feature/ISSUE-123-short-description"
+  commits: "[TYPE]: Description (fixes #123)"
+
+  files:
+    style: "snake_case"      # snake_case | kebab-case | PascalCase | camelCase
+    test_prefix: "test_"
+    test_suffix: ""
+
+# =============================================================================
+# SKILL EXTENSIONS (Optional additions to Superpowers skills)
+# =============================================================================
+
+skill_extensions:
+  brainstorming:
+    additional_considerations:
+      - "Check for breaking API changes"
+      - "Evaluate async/sync implications"
+
+  writing-plans:
+    required_sections:
+      - "Migration steps"
+      - "Rollback plan"
+
+  verification_before_completion:
+    additional_checks:
+      - "Run security scan"
+      - "Check test coverage"

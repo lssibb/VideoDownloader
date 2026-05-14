@@ -1,0 +1,7 @@
+# Kimi Code CLI local configuration for VideoDownloader
+# Superpowers workflow integration
+
+[[hooks]]
+event = "UserPromptSubmit"
+inject_prompt = ".kimi/prompts/superpowers-reminder.md"
+timeout = 5
