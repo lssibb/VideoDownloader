@@ -13,7 +13,7 @@ function App() {
   const [quality, setQuality] = useState<'best' | '1080' | '720' | '480' | 'audio'>('best')
   const [outputDir, setOutputDir] = useState('')
   const [useCookies, setUseCookies] = useState(false)
-  const [settings, setSettings] = useState<SettingsData | null>(null)
+  const [, setSettings] = useState<SettingsData | null>(null)
   const [logs, setLogs] = useState<string[]>([])
   const [downloading, setDownloading] = useState(false)
   const logEndRef = useRef<HTMLDivElement>(null)
