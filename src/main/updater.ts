@@ -1,6 +1,5 @@
 import https from 'node:https'
 import fs from 'node:fs'
-import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import { getBinaryPath } from './utils/binary-path'
 
@@ -50,7 +49,7 @@ function downloadFile(url: string, dest: string, onProgress?: (msg: string) => v
 }
 
 export async function updateYtDlp(
-  senderWindow: BrowserWindow | null,
+  _senderWindow: BrowserWindow | null,
   onLog: (line: string) => void
 ): Promise<{ success: boolean; error?: string }> {
   try {
