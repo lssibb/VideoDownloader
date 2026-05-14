@@ -30,8 +30,8 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   getPrismaClient()
-  registerIpcHandlers()
   createWindow()
+  registerIpcHandlers(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

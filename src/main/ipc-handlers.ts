@@ -1,8 +1,9 @@
-import { dialog, ipcMain, shell } from 'electron'
+import { dialog, ipcMain, shell, BrowserWindow } from 'electron'
 import { getPrismaClient } from './database'
-import type { SettingsData } from '@shared/types'
+import { startDownload } from './downloader'
+import type { DownloadOptions, SettingsData } from '@shared/types'
 
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   ipcMain.handle('get-settings', async () => {
     const prisma = getPrismaClient()
     let settings = await prisma.settings.findFirst()
@@ -50,8 +51,8 @@ export function registerIpcHandlers(): void {
   })
 
   // Placeholder handlers for Phase 2+
-  ipcMain.handle('download-video', async () => {
-    return { success: false, error: 'Not implemented in Phase 1' }
+  ipcMain.handle('download-video', async (_, options: DownloadOptions) => {
+    return startDownload(options, mainWindow)
   })
 
   ipcMain.handle('update-ytdlp', async () => {
