@@ -1,6 +1,6 @@
 import { dialog, ipcMain, shell } from 'electron'
 import { getPrismaClient } from './database'
-import type { DownloadOptions, SettingsData } from '@shared/types'
+import type { SettingsData } from '@shared/types'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('get-settings', async () => {
