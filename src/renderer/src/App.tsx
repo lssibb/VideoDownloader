@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { DownloadOptions, SettingsData } from '@shared/types'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import type { DownloadOptions, HistoryItem, SettingsData } from '@shared/types'
 
 function App() {
   const [url, setUrl] = useState('')
@@ -16,7 +17,13 @@ function App() {
   const [, setSettings] = useState<SettingsData | null>(null)
   const [logs, setLogs] = useState<string[]>([])
   const [downloading, setDownloading] = useState(false)
+  const [history, setHistory] = useState<HistoryItem[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
+
+  const loadHistory = async () => {
+    const items = await window.api.getHistory()
+    setHistory(items)
+  }
 
   useEffect(() => {
     window.api.getSettings().then((s) => {
@@ -24,6 +31,7 @@ function App() {
       setOutputDir(s.defaultDownloadPath)
       setUseCookies(s.useCookies)
     })
+    loadHistory()
   }, [])
 
   useEffect(() => {
@@ -32,6 +40,7 @@ function App() {
     })
     const unsubComplete = window.api.onDownloadComplete(() => {
       setDownloading(false)
+      loadHistory()
     })
     return () => {
       unsubLog()
@@ -69,10 +78,16 @@ function App() {
     }
   }
 
+  const handleClearHistory = async () => {
+    await window.api.clearHistory()
+    setHistory([])
+  }
+
   return (
-    <div className="min-h-screen bg-background p-8 flex flex-col gap-6">
+    <div className="min-h-screen bg-background p-8 flex flex-col gap-6 max-w-5xl mx-auto">
       <h1 className="text-3xl font-bold">Video Downloader v2.0</h1>
 
+      {/* Download Form */}
       <div className="flex flex-col gap-2">
         <Label htmlFor="url">Video URL</Label>
         <Input
@@ -131,6 +146,7 @@ function App() {
         </Button>
       </div>
 
+      {/* Console Output */}
       <div className="flex-1 min-h-[200px] border rounded-md p-4 bg-muted">
         <Label className="mb-2 block">Console Output</Label>
         <ScrollArea className="h-[200px] w-full text-sm font-mono whitespace-pre-wrap">
@@ -139,6 +155,54 @@ function App() {
           ))}
           <div ref={logEndRef} />
         </ScrollArea>
+      </div>
+
+      {/* History Section */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Download History</h2>
+          <Button variant="outline" size="sm" onClick={handleClearHistory} disabled={history.length === 0}>
+            Clear History
+          </Button>
+        </div>
+
+        {history.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No downloads yet.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Quality</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium max-w-[200px] truncate" title={item.title}>
+                    {item.title || 'Unknown'}
+                  </TableCell>
+                  <TableCell>{item.format}</TableCell>
+                  <TableCell>{item.quality}</TableCell>
+                  <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => window.api.openFile(item.filePath)}>
+                        Open
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => window.api.openFolder(item.filePath)}>
+                        Folder
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   )
