@@ -18,6 +18,8 @@ function App() {
   const [logs, setLogs] = useState<string[]>([])
   const [downloading, setDownloading] = useState(false)
   const [history, setHistory] = useState<HistoryItem[]>([])
+  const [updating, setUpdating] = useState(false)
+  const [updateLogs, setUpdateLogs] = useState<string[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const loadHistory = async () => {
@@ -42,9 +44,13 @@ function App() {
       setDownloading(false)
       loadHistory()
     })
+    const unsubUpdate = window.api.onUpdateLog((line) => {
+      setUpdateLogs((prev) => [...prev, line])
+    })
     return () => {
       unsubLog()
       unsubComplete()
+      unsubUpdate()
     }
   }, [])
 
@@ -76,6 +82,16 @@ function App() {
       setLogs((prev) => [...prev, `[error] ${result.error || 'Unknown error'}`])
       setDownloading(false)
     }
+  }
+
+  const handleUpdateYtDlp = async () => {
+    setUpdating(true)
+    setUpdateLogs([])
+    const result = await window.api.updateYtDlp()
+    if (!result.success) {
+      setUpdateLogs((prev) => [...prev, `[error] ${result.error || 'Update failed'}`])
+    }
+    setUpdating(false)
   }
 
   const handleClearHistory = async () => {
@@ -149,7 +165,16 @@ function App() {
         <Button onClick={handleDownload} disabled={downloading || !url.trim() || !outputDir} className="flex-1">
           {downloading ? 'Downloading...' : 'Download'}
         </Button>
+        <Button variant="outline" onClick={handleUpdateYtDlp} disabled={updating}>
+          {updating ? 'Updating...' : 'Update yt-dlp'}
+        </Button>
       </div>
+
+      {updateLogs.length > 0 && (
+        <div className="text-sm font-mono bg-muted p-2 rounded max-h-[150px] overflow-auto">
+          {updateLogs.map((log, i) => <div key={i}>{log}</div>)}
+        </div>
+      )}
 
       {/* Console Output */}
       <div className="flex-1 min-h-[200px] border rounded-md p-4 bg-muted">
