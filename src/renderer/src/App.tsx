@@ -120,15 +120,20 @@ function App() {
       </div>
 
       <div className="flex items-center justify-between">
-        <Checkbox
-          label="Use Cookies"
-          checked={useCookies}
-          onChange={(e) => {
-            const checked = (e.target as HTMLInputElement).checked
-            setUseCookies(checked)
-            window.api.setSettings({ useCookies: checked })
-          }}
-        />
+        <div className="flex items-center gap-4">
+          <Checkbox
+            label="Use Cookies"
+            checked={useCookies}
+            onChange={(e) => {
+              const checked = (e.target as HTMLInputElement).checked
+              setUseCookies(checked)
+              window.api.setSettings({ useCookies: checked })
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={() => window.api.openAuthWindow()}>
+            Login to Google
+          </Button>
+        </div>
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground truncate max-w-[300px]">
