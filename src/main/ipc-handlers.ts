@@ -2,6 +2,7 @@ import { dialog, ipcMain, shell, BrowserWindow } from 'electron'
 import { getPrismaClient } from './database'
 import { startDownload } from './downloader'
 import { openGoogleAuthWindow } from './auth'
+import { updateYtDlp } from './updater'
 import type { DownloadOptions, SettingsData } from '@shared/types'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
@@ -57,7 +58,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   })
 
   ipcMain.handle('update-ytdlp', async () => {
-    return { success: false, error: 'Not implemented in Phase 1' }
+    if (!mainWindow) return { success: false, error: 'Window not available' }
+    const result = await updateYtDlp(mainWindow, (line) => {
+      mainWindow?.webContents.send('update-log', line)
+    })
+    return result
   })
 
   ipcMain.handle('open-auth-window', async () => {
