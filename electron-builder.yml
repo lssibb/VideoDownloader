@@ -6,6 +6,9 @@ directories:
 files:
   - out/**
   - prisma/schema.prisma
+asarUnpack:
+  - 'node_modules/.prisma/client/*.node'
+  - 'node_modules/@prisma/client/**/*.node'
 extraResources:
   - from: resources/bin/
     to: bin
