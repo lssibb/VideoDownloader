@@ -13,7 +13,7 @@ describe('Phase 4 Smoke Tests', () => {
   it('App.tsx contains auth button', () => {
     const content = fs.readFileSync('src/renderer/src/App.tsx', 'utf-8')
     expect(content).toContain('openAuthWindow')
-    expect(content).toContain('Login to Google')
+    expect(content).toContain('LOGIN')
   })
 
   it('downloader.ts references cookie handling', () => {

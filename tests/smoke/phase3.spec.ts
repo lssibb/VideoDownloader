@@ -12,6 +12,6 @@ describe('Phase 3 Smoke Tests', () => {
     expect(content).toContain('clearHistory')
     expect(content).toContain('openFile')
     expect(content).toContain('openFolder')
-    expect(content).toContain('Download History')
+    expect(content).toContain('ARCHIVE')
   })
 })

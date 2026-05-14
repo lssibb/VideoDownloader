@@ -9,7 +9,7 @@ describe('Phase 5 Smoke Tests', () => {
   it('App.tsx contains update button', () => {
     const content = fs.readFileSync('src/renderer/src/App.tsx', 'utf-8')
     expect(content).toContain('updateYtDlp')
-    expect(content).toContain('Update yt-dlp')
+    expect(content).toContain('UPDATE YT-DLP')
   })
 
   it('Windows binaries are bundled', () => {
