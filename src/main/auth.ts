@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron'
 let authWindow: BrowserWindow | null = null
 
 export function openGoogleAuthWindow(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (authWindow && !authWindow.isDestroyed()) {
       authWindow.focus()
       return
