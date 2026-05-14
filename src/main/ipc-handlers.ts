@@ -63,6 +63,20 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('update-ytdlp', async () => {
     const window = BrowserWindow.getAllWindows()[0] ?? null
     if (!window) return { success: false, error: 'Window not available' }
+
+    const confirm = await dialog.showMessageBox(window, {
+      type: 'question',
+      title: 'Обновление yt-dlp',
+      message: 'Скачать и заменить yt-dlp на последнюю версию с GitHub?',
+      buttons: ['Обновить', 'Отмена'],
+      defaultId: 0,
+      cancelId: 1
+    })
+
+    if (confirm.response !== 0) {
+      return { success: false, error: 'Update cancelled by user' }
+    }
+
     const result = await updateYtDlp(window, (line) => {
       window.webContents.send('update-log', line)
     })

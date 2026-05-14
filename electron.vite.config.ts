@@ -16,7 +16,7 @@ export default defineConfig({
       lib: {
         entry: resolve('src/main/index.ts'),
         formats: ['cjs'],
-        fileName: () => '[name].js'
+        fileName: () => '[name].cjs'
       }
     }
   },
@@ -33,7 +33,7 @@ export default defineConfig({
       lib: {
         entry: resolve('src/preload/index.ts'),
         formats: ['cjs'],
-        fileName: () => '[name].js'
+        fileName: () => '[name].cjs'
       }
     }
   },

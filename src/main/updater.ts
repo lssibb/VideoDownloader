@@ -1,6 +1,7 @@
 import https from 'node:https'
 import fs from 'node:fs'
-import { BrowserWindow } from 'electron'
+import { spawn } from 'node:child_process'
+import { BrowserWindow, dialog } from 'electron'
 import { getBinaryPath } from './utils/binary-path'
 
 function httpsGetJson(url: string): Promise<any> {
@@ -57,6 +58,92 @@ function downloadFile(url: string, dest: string, onProgress?: (msg: string) => v
       reject(err)
     })
   })
+}
+
+function getCurrentYtDlpVersion(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const binaryPath = getBinaryPath('yt-dlp')
+    const proc = spawn(binaryPath, ['--version'], { shell: false })
+    let stdout = ''
+    proc.stdout.on('data', (data: Buffer) => { stdout += data.toString() })
+    proc.stderr.on('data', () => {})
+    proc.on('error', (err) => reject(err))
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim())
+      } else {
+        reject(new Error(`yt-dlp --version exited with code ${code}`))
+      }
+    })
+  })
+}
+
+export async function checkForUpdatesOnStartup(mainWindow: BrowserWindow | null): Promise<void> {
+  try {
+    const current = await getCurrentYtDlpVersion()
+    const release = await httpsGetJson('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest')
+    const latest = release.tag_name as string
+
+    if (!latest || current === latest) return
+
+    const result = await (mainWindow
+      ? dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Доступно обновление yt-dlp',
+          message: `Доступна версия ${latest} (установлена: ${current}). Обновить сейчас?`,
+          buttons: ['Обновить', 'Позже'],
+          defaultId: 0,
+          cancelId: 1
+        })
+      : dialog.showMessageBox({
+          type: 'info',
+          title: 'Доступно обновление yt-dlp',
+          message: `Доступна версия ${latest} (установлена: ${current}). Обновить сейчас?`,
+          buttons: ['Обновить', 'Позже'],
+          defaultId: 0,
+          cancelId: 1
+        }))
+
+    if (result.response === 0) {
+      const logs: string[] = []
+      const updateResult = await updateYtDlp(mainWindow, (line) => {
+        logs.push(line)
+        mainWindow?.webContents.send('update-log', line)
+      })
+
+      if (updateResult.success) {
+        await (mainWindow
+          ? dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Обновление завершено',
+              message: 'yt-dlp успешно обновлён до последней версии.',
+              buttons: ['OK']
+            })
+          : dialog.showMessageBox({
+              type: 'info',
+              title: 'Обновление завершено',
+              message: 'yt-dlp успешно обновлён до последней версии.',
+              buttons: ['OK']
+            }))
+      } else {
+        await (mainWindow
+          ? dialog.showMessageBox(mainWindow, {
+              type: 'error',
+              title: 'Ошибка обновления',
+              message: updateResult.error || 'Не удалось обновить yt-dlp.',
+              buttons: ['OK']
+            })
+          : dialog.showMessageBox({
+              type: 'error',
+              title: 'Ошибка обновления',
+              message: updateResult.error || 'Не удалось обновить yt-dlp.',
+              buttons: ['OK']
+            }))
+      }
+    }
+  } catch {
+    // Silently ignore startup check failures
+  }
 }
 
 export async function updateYtDlp(

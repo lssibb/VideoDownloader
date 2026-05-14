@@ -60,12 +60,14 @@ export async function startDownload(
 
   if (options.useCookies) {
     try {
-      const cookies = await session.defaultSession.cookies.get({ domain: '.youtube.com' })
-      if (cookies.length === 0) {
-        notifyLog(senderWindow, '[warn] No YouTube cookies found. Proceeding without authentication.')
+      const ytCookies = await session.defaultSession.cookies.get({ domain: '.youtube.com' })
+      const googleCookies = await session.defaultSession.cookies.get({ domain: '.google.com' })
+      const allCookies = [...googleCookies, ...ytCookies]
+      if (allCookies.length === 0) {
+        notifyLog(senderWindow, '[warn] No cookies found. Proceeding without authentication.')
       } else {
-        cookiePath = await writeTempCookieFile(cookies as any)
-        notifyLog(senderWindow, `[auth] Using ${cookies.length} YouTube cookies`)
+        cookiePath = await writeTempCookieFile(allCookies as any)
+        notifyLog(senderWindow, `[auth] Using ${allCookies.length} cookies (${googleCookies.length} Google, ${ytCookies.length} YouTube)`)
       }
     } catch (err) {
       notifyLog(senderWindow, `[warn] Failed to retrieve cookies: ${(err as Error).message}`)

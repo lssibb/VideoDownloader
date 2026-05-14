@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import path from 'node:path'
 import { registerIpcHandlers } from './ipc-handlers'
 import { getPrismaClient, disconnectDatabase } from './database'
+import { checkForUpdatesOnStartup } from './updater'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -33,6 +34,11 @@ app.whenReady().then(() => {
   getPrismaClient()
   createWindow()
   registerIpcHandlers()
+
+  // Check for yt-dlp updates after a short delay to let the UI load
+  setTimeout(() => {
+    checkForUpdatesOnStartup(mainWindow)
+  }, 3000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
