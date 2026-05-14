@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, session } from 'electron'
 import { getPrismaClient } from './database'
 import { getBinaryPath } from './utils/binary-path'
+import { writeTempCookieFile, deleteTempCookieFile } from './netscape-cookie'
 import type { DownloadOptions } from '@shared/types'
 
-function getYtDlpArgs(options: DownloadOptions): string[] {
+function getYtDlpArgs(options: DownloadOptions, cookiePath?: string): string[] {
   const args: string[] = [options.url]
 
   // Format / Quality selection
@@ -27,9 +28,8 @@ function getYtDlpArgs(options: DownloadOptions): string[] {
     args.push('--merge-output-format', 'mp4')
   }
 
-  // Cookies placeholder for Phase 4
-  if (options.useCookies) {
-    // Will be implemented in Phase 4
+  if (cookiePath) {
+    args.push('--cookies', cookiePath)
   }
 
   // Progress
@@ -55,9 +55,25 @@ export async function startDownload(
   options: DownloadOptions,
   senderWindow: BrowserWindow | null
 ): Promise<{ success: boolean; error?: string; filePath?: string; title?: string }> {
+  let cookiePath: string | undefined
+
+  if (options.useCookies) {
+    try {
+      const cookies = await session.defaultSession.cookies.get({ domain: '.youtube.com' })
+      if (cookies.length === 0) {
+        notifyLog(senderWindow, '[warn] No YouTube cookies found. Proceeding without authentication.')
+      } else {
+        cookiePath = await writeTempCookieFile(cookies as any)
+        notifyLog(senderWindow, `[auth] Using ${cookies.length} YouTube cookies`)
+      }
+    } catch (err) {
+      notifyLog(senderWindow, `[warn] Failed to retrieve cookies: ${(err as Error).message}`)
+    }
+  }
+
   return new Promise((resolve) => {
     const binaryPath = getBinaryPath('yt-dlp')
-    const args = getYtDlpArgs(options)
+    const args = getYtDlpArgs(options, cookiePath)
 
     notifyLog(senderWindow, `[yt-dlp] Starting download from ${options.url}`)
     notifyLog(senderWindow, `[yt-dlp] Command: ${binaryPath} ${args.join(' ')}`)
@@ -83,12 +99,14 @@ export async function startDownload(
       })
     })
 
-    proc.on('error', (err) => {
+    proc.on('error', async (err) => {
+      if (cookiePath) await deleteTempCookieFile(cookiePath)
       notifyLog(senderWindow, `[error] ${err.message}`)
       resolve({ success: false, error: err.message })
     })
 
     proc.on('close', async (code) => {
+      if (cookiePath) await deleteTempCookieFile(cookiePath)
       if (code === 0) {
         // Try to extract title from stdout
         const titleMatch = stdout.match(/\[download\] Destination: (.+)/)
