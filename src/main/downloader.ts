@@ -1,44 +1,13 @@
-import { spawn } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { BrowserWindow, session } from 'electron'
 import { getPrismaClient } from './database'
 import { getBinaryPath } from './utils/binary-path'
 import { writeTempCookieFile, deleteTempCookieFile } from './netscape-cookie'
+import { getYtDlpArgs, isValidUrl, isValidQuality } from './ytdlp-args'
+import { runYtDlp, parseInfoFile } from './ytdlp-run'
 import type { DownloadOptions } from '@shared/types'
-
-function getYtDlpArgs(options: DownloadOptions, cookiePath?: string): string[] {
-  const args: string[] = [options.url]
-
-  // Format / Quality selection
-  if (options.format === 'audio') {
-    args.push('-f', 'bestaudio', '--extract-audio', '--audio-format', 'mp3')
-  } else if (options.quality === 'best') {
-    args.push('-f', 'bestvideo*+bestaudio/best')
-  } else {
-    const height = options.quality
-    args.push('-f', `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]`)
-  }
-
-  // Output template
-  const outTemplate = path.join(options.outputDir, '%(title)s.%(ext)s')
-  args.push('-o', outTemplate)
-
-  // Merge output format for video
-  if (options.format !== 'audio') {
-    args.push('--merge-output-format', 'mp4')
-  }
-
-  if (cookiePath) {
-    args.push('--cookies', cookiePath)
-  }
-
-  // Progress
-  args.push('--newline')
-  args.push('--no-warnings')
-
-  return args
-}
 
 function notifyLog(window: BrowserWindow | null, line: string): void {
   if (window && !window.isDestroyed()) {
@@ -46,7 +15,10 @@ function notifyLog(window: BrowserWindow | null, line: string): void {
   }
 }
 
-function notifyComplete(window: BrowserWindow | null, data: { filePath: string; title: string }): void {
+function notifyComplete(
+  window: BrowserWindow | null,
+  data: { filePath: string; title: string }
+): void {
   if (window && !window.isDestroyed()) {
     window.webContents.send('download-complete', data)
   }
@@ -67,7 +39,10 @@ export async function startDownload(
         notifyLog(senderWindow, '[warn] No cookies found. Proceeding without authentication.')
       } else {
         cookiePath = await writeTempCookieFile(allCookies as any)
-        notifyLog(senderWindow, `[auth] Using ${allCookies.length} cookies (${googleCookies.length} Google, ${ytCookies.length} YouTube)`)
+        notifyLog(
+          senderWindow,
+          `[auth] Using ${allCookies.length} cookies (${googleCookies.length} Google, ${ytCookies.length} YouTube)`
+        )
       }
     } catch (err) {
       notifyLog(senderWindow, `[warn] Failed to retrieve cookies: ${(err as Error).message}`)
@@ -75,13 +50,14 @@ export async function startDownload(
   }
 
   // Validate URL
-  if (!/^https?:\/\//.test(options.url) || options.url.startsWith('-')) {
+  if (!isValidUrl(options.url)) {
+    if (cookiePath) await deleteTempCookieFile(cookiePath)
     return { success: false, error: 'Invalid URL' }
   }
 
   // Validate quality
-  const allowedQualities = ['best', '1080', '720', '480', 'audio']
-  if (!allowedQualities.includes(options.quality)) {
+  if (!isValidQuality(options.quality)) {
+    if (cookiePath) await deleteTempCookieFile(cookiePath)
     return { success: false, error: 'Invalid quality option' }
   }
 
@@ -92,81 +68,82 @@ export async function startDownload(
     }
     fs.accessSync(options.outputDir, fs.constants.W_OK)
   } catch {
+    if (cookiePath) await deleteTempCookieFile(cookiePath)
     return { success: false, error: 'Invalid output directory' }
   }
 
-  return new Promise((resolve) => {
-    const binaryPath = getBinaryPath('yt-dlp')
-    const args = getYtDlpArgs(options, cookiePath)
+  const infoPath = path.join(
+    os.tmpdir(),
+    `vd-info-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+  )
+  const binaryPath = getBinaryPath('yt-dlp')
+  const args = getYtDlpArgs(options, cookiePath, infoPath)
 
-    notifyLog(senderWindow, `[yt-dlp] Starting download from ${options.url}`)
-    const logArgs = cookiePath ? args.map((a) => (a === cookiePath ? '[REDACTED]' : a)) : args
-    notifyLog(senderWindow, `[yt-dlp] Command: ${binaryPath} ${logArgs.join(' ')}`)
+  const cleanup = async (): Promise<void> => {
+    if (cookiePath) await deleteTempCookieFile(cookiePath)
+    try {
+      await fs.promises.unlink(infoPath)
+    } catch {
+      // ignore
+    }
+  }
 
-    const proc = spawn(binaryPath, args, { shell: false })
+  notifyLog(senderWindow, `[yt-dlp] Starting download from ${options.url}`)
+  const logArgs = cookiePath ? args.map((a) => (a === cookiePath ? '[REDACTED]' : a)) : args
+  notifyLog(senderWindow, `[yt-dlp] Command: ${binaryPath} ${logArgs.join(' ')}`)
 
-    let stdout = ''
-    let stderr = ''
+  let result
+  try {
+    result = await runYtDlp(binaryPath, args, (line) => notifyLog(senderWindow, `[yt-dlp] ${line}`))
+  } catch (err) {
+    await cleanup()
+    const msg = (err as Error).message
+    notifyLog(senderWindow, `[error] ${msg}`)
+    return { success: false, error: msg }
+  }
 
-    proc.stdout.on('data', (data: Buffer) => {
-      const chunk = data.toString()
-      stdout += chunk
-      chunk.split('\n').forEach((line) => {
-        if (line.trim()) notifyLog(senderWindow, `[yt-dlp] ${line.trim()}`)
-      })
-    })
+  if (result.code !== 0) {
+    await cleanup()
+    const errMsg = result.stderr.trim() || `yt-dlp exited with code ${result.code}`
+    notifyLog(senderWindow, `[error] ${errMsg}`)
+    return { success: false, error: errMsg }
+  }
 
-    proc.stderr.on('data', (data: Buffer) => {
-      const chunk = data.toString()
-      stderr += chunk
-      chunk.split('\n').forEach((line) => {
-        if (line.trim()) notifyLog(senderWindow, `[yt-dlp] ${line.trim()}`)
-      })
-    })
+  const info = parseInfoFile(infoPath)
 
-    proc.on('error', async (err) => {
-      if (cookiePath) await deleteTempCookieFile(cookiePath)
-      notifyLog(senderWindow, `[error] ${err.message}`)
-      resolve({ success: false, error: err.message })
-    })
+  // Fall back to parsing stdout if the info file is unavailable.
+  const titleMatch = result.stdout.match(/\[download\] Destination: (.+)/)
+  const fallbackTitle = titleMatch
+    ? path.basename(titleMatch[1], path.extname(titleMatch[1]))
+    : 'Unknown'
+  const ext = options.format === 'audio' ? 'mp3' : 'mp4'
 
-    proc.on('close', async (code) => {
-      if (cookiePath) await deleteTempCookieFile(cookiePath)
-      if (code === 0) {
-        // Try to extract title from stdout
-        const titleMatch = stdout.match(/\[download\] Destination: (.+)/)
-        const title = titleMatch ? path.basename(titleMatch[1], path.extname(titleMatch[1])) : 'Unknown'
-        const ext = options.format === 'audio' ? 'mp3' : 'mp4'
-        const filePath = path.join(options.outputDir, `${title}.${ext}`)
+  const title = info.title || fallbackTitle
+  const filePath = info.filePath || path.join(options.outputDir, `${title}.${ext}`)
+  const duration = info.duration || ''
 
-        // Persist to history
-        try {
-          const prisma = getPrismaClient()
-          await prisma.history.create({
-            data: {
-              url: options.url,
-              title,
-              duration: '',
-              format: options.format,
-              quality: options.quality,
-              filePath
-            }
-          })
-        } catch (dbErr) {
-          const dbErrorMsg = (dbErr as Error).message
-          console.error('[db] Failed to write history:', dbErrorMsg)
-          notifyLog(senderWindow, `[error] Failed to save download history: ${dbErrorMsg}`)
-          resolve({ success: false, error: dbErrorMsg })
-          return
-        }
+  await cleanup()
 
-        notifyComplete(senderWindow, { filePath, title })
-        resolve({ success: true, filePath, title })
-      } else {
-        const errMsg = stderr.trim() || `yt-dlp exited with code ${code}`
-        notifyLog(senderWindow, `[error] ${errMsg}`)
-        resolve({ success: false, error: errMsg })
+  // Persist to history
+  try {
+    const prisma = getPrismaClient()
+    await prisma.history.create({
+      data: {
+        url: options.url,
+        title,
+        duration,
+        format: options.format,
+        quality: options.quality,
+        filePath
       }
     })
-  })
+  } catch (dbErr) {
+    const dbErrorMsg = (dbErr as Error).message
+    console.error('[db] Failed to write history:', dbErrorMsg)
+    notifyLog(senderWindow, `[error] Failed to save download history: ${dbErrorMsg}`)
+    return { success: false, error: dbErrorMsg }
+  }
+
+  notifyComplete(senderWindow, { filePath, title })
+  return { success: true, filePath, title }
 }

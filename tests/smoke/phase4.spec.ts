@@ -20,6 +20,10 @@ describe('Phase 4 Smoke Tests', () => {
     const content = fs.readFileSync('src/main/downloader.ts', 'utf-8')
     expect(content).toContain('writeTempCookieFile')
     expect(content).toContain('deleteTempCookieFile')
+  })
+
+  it('yt-dlp args pass the cookie file with --cookies', () => {
+    const content = fs.readFileSync('src/main/ytdlp-args.ts', 'utf-8')
     expect(content).toContain('--cookies')
   })
 })

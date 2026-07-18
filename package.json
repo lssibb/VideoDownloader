@@ -15,12 +15,13 @@
     "db:migrate": "prisma migrate dev",
     "dist": "electron-builder",
     "dist:dir": "electron-builder --dir",
-    "test": "vitest run",
-    "test:smoke": "vitest run tests/smoke"
+    "test": "vitest run tests/unit tests/smoke",
+    "test:unit": "vitest run tests/unit",
+    "test:smoke": "vitest run tests/smoke",
+    "test:e2e": "vitest run tests/e2e --config vitest.e2e.config.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0",
-    "electron-updater": "^6.6.2"
+    "@prisma/client": "^6.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
@@ -30,7 +31,7 @@
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "electron": "^35.2.0",
+    "electron": "^43.1.1",
     "electron-builder": "^26.0.12",
     "electron-vite": "^3.1.0",
     "lucide-react": "^0.503.0",
