@@ -401,6 +401,7 @@ function App() {
                     <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Title</TableHead>
                     <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase w-[80px]">Format</TableHead>
                     <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase w-[80px]">Quality</TableHead>
+                    <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase w-[90px]">Duration</TableHead>
                     <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase w-[140px]">Date</TableHead>
                     <TableHead className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase w-[120px]">Actions</TableHead>
                   </TableRow>
@@ -413,6 +414,7 @@ function App() {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground uppercase">{item.format}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground uppercase">{item.quality}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{item.duration || '—'}</TableCell>
                       <TableCell className="font-mono text-[10px] text-muted-foreground">
                         {new Date(item.createdAt).toLocaleString()}
                       </TableCell>
